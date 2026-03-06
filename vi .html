@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Vihaan Intelligence 😈</title>
+<style>
+body {margin:0; font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif; display:flex; height:100vh; background:#343541; color:white;}
+#sidebar {width:220px; background:#202123; padding:15px; display:flex; flex-direction:column;}
+#sidebar h2 {font-size:16px; margin-bottom:10px;}
+#sidebar button, #sidebar select {padding:8px; margin-bottom:10px; background:#444654; border:none; color:white; border-radius:6px; cursor:pointer;}
+#main {flex:1; display:flex; flex-direction:column;}
+#chat {flex:1; overflow-y:auto; padding:20px;}
+.message {margin-bottom:20px; max-width:700px;}
+.user {color:#19c37d;}
+.bot {color:white;}
+.small {font-size:12px; opacity:0.6;}
+#inputArea {padding:15px; background:#40414f; display:flex;}
+input {flex:1; padding:12px; border-radius:8px; border:none; font-size:15px;}
+button.send {margin-left:10px; padding:12px 15px; border-radius:8px; border:none; background:#19c37d; color:black; cursor:pointer;}
+a.sourceLink {color:#22c55e; font-size:12px; display:block; text-decoration:none;}
+a.sourceLink:hover {text-decoration:underline;}
+</style>
+</head>
+<body>
+
+<div id="sidebar">
+<h2>Vihaan Intelligence 😈</h2>
+<button onclick="newChat()">+ New Chat</button>
+<label><input type="checkbox" id="researchToggle"> Research Mode 🌍</label>
+<select id="personalitySelect">
+<option value="researcher">🔬 Researcher</option>
+<option value="teacher">📚 Teacher</option>
+<option value="game_dev">🎮 Game Dev</option>
+<option value="chill">🤖 Chill Bot</option>
+<option value="ceo">👑 CEO Mode</option>
+</select>
+</div>
+
+<div id="main">
+<div id="chat"></div>
+<div id="inputArea">
+<input type="text" id="userInput" placeholder="Message Vihaan Intelligence..." />
+<button class="send" onclick="sendMessage()">Send</button>
+</div>
+</div>
+
+<script>
+const chat=document.getElementById("chat");
+const input=document.getElementById("userInput");
+const researchToggle=document.getElementById("researchToggle");
+const personalitySelect=document.getElementById("personalitySelect");
+
+let memory=JSON.parse(localStorage.getItem("vihaan_intelligence_memory")||"[]");
+
+function addMessage(text,type,small="",sources=[]){
+    const msg=document.createElement("div");
+    msg.className="message "+type;
+    msg.innerHTML="<strong>"+(type==="user"?"You":"Vihaan Intelligence")+"</strong>: "+text+
+        (small?("<div class='small'>"+small+"</div>"):"");
+    if(sources.length>0){
+        sources.forEach(s=>{
+            const a=document.createElement("a");
+            a.href=s;
+            a.target="_blank";
+            a.className="sourceLink";
+            a.innerText="🔗 Source";
+            msg.appendChild(a);
+        });
+    }
+    chat.appendChild(msg);
+    chat.scrollTop=chat.scrollHeight;
+}
+
+function newChat(){chat.innerHTML=""; memory=[]; localStorage.removeItem("vihaan_intelligence_memory");}
+
+async function research(query){
+    try{
+        const response=await fetch("https://api.duckduckgo.com/?q="+encodeURIComponent(query)+"&format=json&no_redirect=1");
+        const data=await response.json();
+        let combined="", sources=[];
+        if(data.AbstractText){ combined+=data.AbstractText+" "; sources.push("https://duckduckgo.com/?q="+encodeURIComponent(query)); }
+        if(data.RelatedTopics){
+            data.RelatedTopics.slice(0,3).forEach(t=>{ if(t.Text){ combined+=t.Text+" "; sources.push("https://duckduckgo.com/?q="+encodeURIComponent(t.Text)); } });
+        }
+        if(!combined) combined="Limited research results found.";
+        return {text:combined, sources};
+    }catch{return {text:"Research failed.", sources:[]};}
+}
+
+function summarize(text){const sentences=text.split(". "); return sentences.slice(0,3).join(". ")+".";}
+
+function personalityPrefix(personality){
+    switch(personality){
+        case "teacher": return "As a knowledgeable teacher, ";
+        case "game_dev": return "As a game developer, ";
+        case "chill": return "Relaxed reply: ";
+        case "ceo": return "CEO perspective: ";
+        default: return "";
+    }
+}
+
+function generateReply(text){
+    const lower=text.toLowerCase();
+    if(lower.includes("hello")||lower.includes("hi")) return "Hey there! I'm Vihaan Intelligence 😎 How’s it going?";
+    if(lower.includes("game")) return "Games are awesome! Are you making one?";
+    if(lower.includes("ai")||lower.includes("robot")) return "AI is fascinating! What do you want me to do?";
+    if(lower.includes("help")||lower.includes("how")) return "I can help! Tell me exactly what you need.";
+    const responses=["Interesting, tell me more.","Why do you think that?","Hmm… explain that further.","That’s a good point!","I see, keep going."];
+    return responses[Math.floor(Math.random()*responses.length)];
+}
+
+async function sendMessage(){
+    const text=input.value.trim();
+    if(!text) return;
+    addMessage(text,"user"); memory.push({role:"user",text}); input.value="";
+    let reply="", small="", sources=[];
+
+    if(researchToggle.checked){
+        addMessage("🔎 Researching multiple sources...","bot");
+        const res=await research(text);
+        const summary=summarize(res.text);
+        reply=personalityPrefix(personalitySelect.value)+summary;
+        small="Based on combined research";
+        sources=res.sources;
+    } else {
+        reply=personalityPrefix(personalitySelect.value)+generateReply(text);
+    }
+
+    addMessage(reply,"bot",small,sources);
+    memory.push({role:"bot",text:reply});
+    localStorage.setItem("vihaan_intelligence_memory",JSON.stringify(memory));
+}
+
+// Load memory on page load
+memory.forEach(m=>addMessage(m.text,m.role==="user"?"user":"bot"));
+
+input.addEventListener("keypress",function(e){if(e.key==="Enter") sendMessage();});
+</script>
+
+</body>
+</html>
